@@ -1,67 +1,26 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const cors = require('cors');
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
 const app = express();
+app.use(express.json());
 app.use(cors());
-app.use(bodyParser.json());
 
+// Routes
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/attendance", require("./routes/attendance"));
+app.use("/api/location", require("./routes/location"));
+app.use("/api/travel", require("./routes/travel"));
+app.use("/api/approval", require("./routes/approval"));
 
-// ---------------------------
-// ROUTES IMPORTS
-// ---------------------------
-const authRoutes = require('./routes/auth');
-const attendanceRoutes = require('./routes/attendance');
-const dailyRoutes = require('./routes/daily');
-const locationRoutes = require('./routes/location');
-const travelRoutes = require('./routes/travel');
-const managerRoutes = require('./routes/manager');
-const devRoutes = require('./routes/dev');
-
-
-// ---------------------------
-// MONGO CONNECTION
-// ---------------------------
-const MONGO =
-  process.env.MONGO_URI || 'mongodb://localhost:27017/attendance_app';
-
+// DB
 mongoose
-  .connect(MONGO, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Mongo connected'))
-  .catch(err => console.error('Mongo connection error:', err));
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.log("DB ERROR", err));
 
-
-// ---------------------------
-// ROUTE MOUNTING
-// ---------------------------
-app.use('/api/auth', authRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/attendance/daily', dailyRoutes);
-app.use('/api/locations', locationRoutes);
-app.use('/api/travel', travelRoutes);
-app.use('/api/manager', managerRoutes);
-app.use('/api/dev', devRoutes);
-
-
-// ---------------------------
-// DEFAULT ROUTE
-// ---------------------------
-app.get('/', (req, res) => {
-  res.send('Attendance backend is running');
-});
-
-
-// ---------------------------
-// START SERVER (IMPORTANT)
-// ---------------------------
-
-// CHANGE THIS to YOUR WiFi IP (from ipconfig)
-const HOST = "10.117.112.144";  
 const PORT = process.env.PORT || 4000;
-
-// Bind to the WiFi adapter only
-app.listen(PORT, HOST, () => {
-  console.log(`Backend running at http://${HOST}:${PORT}`);
-  console.log(`Accessible on LAN for your phone`);
-});
+app.listen(PORT, "0.0.0.0", () =>
+  console.log(`Server running on port ${PORT}`)
+);

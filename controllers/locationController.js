@@ -1,58 +1,46 @@
-const Location = require('../models/Location');
+const Location = require("../models/Location");
+const { distanceInMeters } = require("../utils/geofence");
+const TravelRequest = require("../models/TravelRequest");
 
-// Create Location
-exports.createLocation = async (req, res) => {
+const OFFICE_LAT = parseFloat(process.env.OFFICE_LAT);
+const OFFICE_LNG = parseFloat(process.env.OFFICE_LNG);
+const RADIUS = parseInt(process.env.GEOFENCE_RADIUS);
+
+exports.trackLocation = async (req, res) => {
   try {
-    const { name, lat, lng, radius } = req.body;
+    const { latitude, longitude } = req.body;
+    const userId = req.user.id;
 
-    const loc = await Location.create({
-      name,
-      lat,
-      lng,
-      radius: radius || 50,
-    });
-
-    res.json({ ok: true, loc });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
-
-// Get All Locations
-exports.getLocations = async (req, res) => {
-  try {
-    const locations = await Location.find();
-    res.json({ ok: true, locations });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
-
-// Update Location
-exports.updateLocation = async (req, res) => {
-  try {
-    const loc = await Location.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
+    const distance = distanceInMeters(
+      OFFICE_LAT,
+      OFFICE_LNG,
+      latitude,
+      longitude
     );
 
-    if (!loc) return res.status(404).json({ error: 'Location not found' });
+    const insideOffice = distance <= RADIUS;
 
-    res.json({ ok: true, loc });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
+    // detect travel ( > 500m )
+    let away = false;
+    if (distance > 500) {
+      const approvedTravel = await TravelRequest.findOne({
+        userId,
+        approved: true,
+      });
 
-// Delete Location
-exports.deleteLocation = async (req, res) => {
-  try {
-    const loc = await Location.findByIdAndDelete(req.params.id);
-    if (!loc) return res.status(404).json({ error: 'Location not found' });
+      away = !approvedTravel;
+    }
 
-    res.json({ ok: true, message: 'Location deleted' });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    await Location.create({
+      userId,
+      latitude,
+      longitude,
+      insideOffice,
+      away,
+    });
+
+    res.json({ ok: true, insideOffice, away, dist: distance });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 };

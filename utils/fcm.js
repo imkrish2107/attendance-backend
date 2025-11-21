@@ -1,22 +1,23 @@
-const axios = require('axios');
+const axios = require("axios");
 
-module.exports.sendPush = async (deviceToken, title, body) => {
-  const FCM_SERVER_KEY = process.env.FCM_KEY;
+exports.sendToDevice = async (token, payload) => {
+  const serverKey = process.env.FCM_SERVER_KEY;
 
   await axios.post(
-    'https://fcm.googleapis.com/fcm/send',
+    "https://fcm.googleapis.com/fcm/send",
     {
-      to: deviceToken,
+      to: token,
       notification: {
-        title,
-        body
-      }
+        title: payload.title,
+        body: payload.body,
+      },
+      data: payload.data || {},
     },
     {
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `key=${FCM_SERVER_KEY}`
-      }
+        Authorization: `key=${serverKey}`,
+        "Content-Type": "application/json",
+      },
     }
   );
 };

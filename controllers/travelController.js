@@ -1,82 +1,32 @@
-const Travel = require('../models/TravelRequest');
-const User = require('../models/User');
-const { sendPush } = require('../utils/fcm');
+const Travel = require("../models/TravelRequest");
+const User = require("../models/User");
+const { sendToDevice } = require("../utils/fcm");
 
-// START TRAVEL
-exports.startTravel = async (req, res) => {
-  try {
-    const { reason, taskAssignedBy } = req.body;
+exports.requestTravel = async (req, res) => {
+  const { reason } = req.body;
+  const userId = req.user.id;
 
-    const travel = await Travel.create({
-      userId: req.user.id,
-      reason,
-      taskAssignedBy,
-      startTime: new Date()
-    });
+  const travel = await Travel.create({ userId, reason });
 
-    res.json({ ok: true, travel });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+  res.json({ ok: true, travel });
 };
 
-// STOP TRAVEL
-exports.stopTravel = async (req, res) => {
-  try {
-    const travel = await Travel.findById(req.params.id);
-
-    if (!travel) return res.status(404).json({ error: 'Not found' });
-
-    travel.endTime = new Date();
-    await travel.save();
-
-    res.json({ ok: true, travel });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
-
-// APPROVE TRAVEL
 exports.approveTravel = async (req, res) => {
-  try {
-    const travel = await Travel.findById(req.params.id);
-    if (!travel) return res.status(404).json({ error: 'Not found' });
+  const id = req.params.id;
 
-    travel.status = 'approved';
-    await travel.save();
+  const travel = await Travel.findById(id);
+  travel.approved = true;
+  travel.rejected = false;
+  await travel.save();
 
-    // Notify the employee
-    const employee = await User.findById(travel.userId);
-    if (employee.deviceToken) {
-      await sendPush(employee.deviceToken, 'Travel Approved', 'Your travel request has been approved.');
-    }
-
-    res.json({ ok: true, travel });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+  const user = await User.findById(travel.userId);
+  if (user.deviceToken) {
+    await sendToDevice(user.deviceToken, {
+      title: "Travel Approved",
+      body: travel.reason,
+      data: { type: "travel_approved" },
+    });
   }
-};
 
-// REJECT TRAVEL
-exports.rejectTravel = async (req, res) => {
-  try {
-    const { note } = req.body;
-    const travel = await Travel.findById(req.params.id);
-
-    if (!travel) return res.status(404).json({ error: 'Not found' });
-
-    travel.status = 'rejected';
-    travel.rejectionNote = note;
-    await travel.save();
-
-    // Notify employee
-    const employee = await User.findById(travel.userId);
-    if (employee.deviceToken) {
-      await sendPush(employee.deviceToken, 'Travel Rejected', note || 'Travel request was rejected.');
-    }
-
-    res.json({ ok: true, travel });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+  res.json({ ok: true });
 };

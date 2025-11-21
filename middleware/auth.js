@@ -1,24 +1,18 @@
-const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'secret123';
+const jwt = require("jsonwebtoken");
 
-module.exports = (roles = []) => {
-  return (req, res, next) => {
-    try {
-      const header = req.headers.authorization;
-      if (!header) return res.status(401).json({ error: 'No token' });
+module.exports = (req, res, next) => {
+  const authHeader = req.headers.authorization;
 
-      const token = header.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET);
+  if (!authHeader)
+    return res.status(401).json({ error: "Token missing" });
 
-      // role-based access
-      if (roles.length && !roles.includes(decoded.role)) {
-        return res.status(403).json({ error: 'Not allowed' });
-      }
+  const token = authHeader.split(" ")[1];
 
-      req.user = decoded; // attach user info
-      next();
-    } catch (err) {
-      res.status(401).json({ error: 'Invalid token' });
-    }
-  };
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;   // { id, role }
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
 };

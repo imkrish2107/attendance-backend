@@ -1,16 +1,29 @@
-const express = require('express');
-const router = express.Router();
-const requireAuth = require('../middleware/auth'); 
-const ctrl = require('../controllers/attendanceController');
+// backend_node/routes/attendance.js
 
-// Employee check-in / check-out
-router.post('/checkin', requireAuth(['employee','manager','admin']), ctrl.checkIn);
-router.post('/checkout', requireAuth(['employee','manager','admin']), ctrl.checkOut);
+const router = require("express").Router();
+const auth = require("../middleware/auth");
 
-// Get all events for a specific user (timeline)
-router.get('/events/:userId', requireAuth(['employee','manager','admin']), ctrl.getEvents);
+const {
+  checkIn,
+  checkOut,
+  getDailySummary,
+  getUserEvents,
+  logLocation,   // <-- THIS MUST BE IMPORTED
+} = require("../controllers/attendanceController");
 
-// Get daily attendance summary
-router.get('/daily/:userId', requireAuth(['employee','manager','admin']), ctrl.getTodaySummary);
+// CHECK-IN
+router.post("/checkin", auth, checkIn);
+
+// CHECK-OUT
+router.post("/checkout", auth, checkOut);
+
+// DAILY SUMMARY
+router.get("/daily/:userId", auth, getDailySummary);
+
+// TIMELINE EVENTS
+router.get("/events/:userId", auth, getUserEvents);
+
+// LOCATION LOGGING (every 5 minutes)
+router.post("/log-location", auth, logLocation);
 
 module.exports = router;
