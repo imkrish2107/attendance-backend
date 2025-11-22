@@ -1,5 +1,3 @@
-// backend_node/routes/attendance.js
-
 const router = require("express").Router();
 const auth = require("../middleware/auth");
 
@@ -8,7 +6,7 @@ const {
   checkOut,
   getDailySummary,
   getUserEvents,
-  logLocation,   // <-- THIS MUST BE IMPORTED
+  logLocation,
 } = require("../controllers/attendanceController");
 
 // CHECK-IN

@@ -1,3 +1,4 @@
+// backend_node/models/LocationLog.js
 const mongoose = require("mongoose");
 
 const LocationLogSchema = new mongoose.Schema({
@@ -27,6 +28,11 @@ const LocationLogSchema = new mongoose.Schema({
     enum: ["inside", "outside", "away"],
     default: "outside",
   },
+  travelId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "TravelRequest",
+    default: null
+  }
 });
 
 module.exports = mongoose.model("LocationLog", LocationLogSchema);

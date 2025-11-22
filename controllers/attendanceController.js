@@ -1,6 +1,6 @@
 // backend_node/controllers/attendanceController.js
-
 const Attendance = require("../models/Attendance");
+const AttendanceEvent = require("../models/AttendanceEvent");
 const LocationLog = require("../models/LocationLog");
 const { distanceMeters } = require("../utils/geofence");
 
@@ -44,6 +44,13 @@ exports.checkIn = async (req, res) => {
       status: "present",
     });
 
+    // create an AttendanceEvent for timeline
+    await AttendanceEvent.create({
+      userId,
+      type: "checkin",
+      timestamp: new Date(),
+    });
+
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -78,6 +85,13 @@ exports.checkOut = async (req, res) => {
     attendance.checkOutTime = now.toISOString();
     await attendance.save();
 
+    // create AttendanceEvent for checkout
+    await AttendanceEvent.create({
+      userId,
+      type: "checkout",
+      timestamp: now,
+    });
+
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -96,30 +110,62 @@ exports.getDailySummary = async (req, res) => {
 
     if (!record) {
       return res.json({
-        date,
-        status: "absent",
-        checkInTime: null,
-        checkOutTime: null,
+        ok: true,
+        summary: {
+          date,
+          startTime: null,
+          endTime: null,
+          workedHours: 0,
+          status: "absent",
+        },
       });
     }
 
-    res.json(record);
+    let workedHours = 0;
+    if (record.checkInTime && record.checkOutTime) {
+      workedHours =
+        (new Date(record.checkOutTime) - new Date(record.checkInTime)) /
+        (1000 * 60 * 60);
+    } else if (record.checkInTime && !record.checkOutTime) {
+      workedHours =
+        (new Date().toISOString() && (new Date() - new Date(record.checkInTime))) /
+        (1000 * 60 * 60);
+      // we return hours so far (optional)
+    }
+
+    res.json({
+      ok: true,
+      summary: {
+        date,
+        startTime: record.checkInTime,
+        endTime: record.checkOutTime || null,
+        workedHours,
+        status: record.status || "present",
+      },
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
 
 // ----------------------------------------
-// TIMELINE EVENTS (IN/OUT logs)
+// TIMELINE EVENTS (IN/OUT logs) - uses AttendanceEvent model
 // ----------------------------------------
 exports.getUserEvents = async (req, res) => {
   try {
     const userId = req.params.userId;
     const date = req.query.date || new Date().toISOString().substring(0, 10);
 
-    const events = await Attendance.find({ userId, date });
+    // build date range
+    const start = new Date(date + "T00:00:00.000Z");
+    const end = new Date(date + "T23:59:59.999Z");
 
-    res.json({ events });
+    const events = await AttendanceEvent.find({
+      userId,
+      timestamp: { $gte: start, $lte: end },
+    }).sort({ timestamp: 1 });
+
+    res.json({ ok: true, events });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
